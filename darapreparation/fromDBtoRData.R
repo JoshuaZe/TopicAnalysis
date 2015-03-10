@@ -35,6 +35,10 @@ nrow(dbReadTable(conn, "paper_author_keyword"))
 res <- dbSendQuery(conn, "SELECT ITEM_UT as item_ut, AUTHOR_KEYWORD as author_keyword FROM paper_author_keyword")
 paperKeyword <- dbFetch(res,n = -1)
 dbClearResult(res)
+# keyword-keyword
+res <- dbSendQuery(conn, "SELECT t1.AUTHOR_KEYWORD as keyword1,t2.AUTHOR_KEYWORD as keyword2 FROM paper_author_keyword as t1 inner join paper_author_keyword as t2 on t1.ITEM_UT = t2.ITEM_UT WHERE t1.AUTHOR_KEYWORD <> t2.AUTHOR_KEYWORD")
+coterm <- dbFetch(res,n = -1)
+dbClearResult(res)
 # close db connection
 dbDisconnect(conn)
 
@@ -44,6 +48,7 @@ addPersistentObjects("paperCitationYear")
 addPersistentObjects("paperYearCitedMatrix")
 addPersistentObjects("paperAuthor")
 addPersistentObjects("paperKeyword")
+addPersistentObjects("coterm")
 rmTempObject()
 
 # save .RData
