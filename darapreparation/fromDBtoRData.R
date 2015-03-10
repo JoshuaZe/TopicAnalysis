@@ -1,4 +1,4 @@
-setwd("F:\Github\TopicAnalysis")
+setwd("F:/Github/TopicAnalysis")
 source(file = "util.R",encoding = "UTF-8")
 Sys.setlocale(,"CHS")
 # Experiment of the Research Topic Detection
@@ -52,4 +52,4 @@ addPersistentObjects("coterm")
 rmTempObject()
 
 # save .RData
-save(file = "paperdb.RData",list = memoryWhiteList)
+save(file = "datapreparation/paperdb.RData",list = memoryWhiteList)
