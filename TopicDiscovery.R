@@ -10,12 +10,80 @@
 #####
 #library(tm)
 #paperKeywordBinDTM <- as.DocumentTermMatrix(paperKeywordMatrix,weightBin)
-# A:二分图分隔子图分析预处理
+#####
+# 二分图分隔子图分析预处理
+#####
+library(bipartite)
+library(ggplot2)
+library(dplyr)
 binet <- paperKeywordMatrix
 binetCompart <- compart(binet)
-ND(binet, normalised=TRUE)
+binetCompart$n.compart
+paperCompart <- data.frame(paper=row.names(binetCompart$cweb),compart=-apply(binetCompart$cweb,1,FUN = min))
+compartofeach <- paperCompart %>% group_by(compart) %>% summarise(cnt = n())
+compartofeach$cnt
+ggplot(compartofeach,aes(x = compart,y = cnt)) + geom_point()
+binetMaxCompart <- paperKeywordMatrix[row.names(paperKeywordMatrix) %in% (paperCompart %>% filter(compart==2))[,1]),]
+binetMaxCompart <- empty(binetMaxCompart)
+# A:degree distribution analysis
+# 结论:关键词是幂率分布,关键词的度存在长尾(少部分关键词被广泛使用,大多数关键词只在一两篇论文中使用)
+# 根据优先连接的规则,度高的关键词更容易被论文使用
+# 并且二分网络下度高的关键词其投影(共词网络)的关键词度也高
+degreedistr(binetMaxCompart)
+#moduleWebObject  <-  computeModules(binetMaxCompart)
+#moduleList  <-  listModuleInformation(moduleWebObject)
+#moduleCZ <- czvalues(moduleWebObject)
+#plotModuleWeb(moduleWebObject)
+#####
+# coterm network
 # B:共词网络/二分图话题发现技术
-# B:特定语境下话题划分评价
+# 做菜类比:每一位创作者从素材话题中选取特定关键词制作论文
+# 不同目的下话题划分方式不同
+# 1.论文实例可以被类别领域清晰分割,而符合论文实例创作机制的话题也应当被该类别领域清晰分割
+# 2.各个类别领域被非主要分配的惩罚不同（分类-杂志）
+# 3.以上两点保证所选关键词是在同一个类别下,但不同话题关键词间距与同话题关键词间距远
+#####
+#http://toreopsahl.com/tnet/two-mode-networks/projection/
+projectingKeywordNetwork <- list(keyword=colnames(binetMaxCompart),coterm=projecting_tm(t(binetMaxCompart),method = "sum"))
+# network generation and simplify
+library(igraph)
+g_coterm <- graph.edgelist(el = as.matrix(projectingKeywordNetwork$coterm[,1:2]),directed = FALSE)
+g_coterm$name  <- "co-term"
+E(g_coterm)$weight <- projectingKeywordNetwork$coterm[,3]
+V(g_coterm)$keyword <- projectingKeywordNetwork$keyword
+V(g_coterm)$docfreq <- colSums(binetMaxCompart)
+is.simple(g_coterm)
+g_coterm <- simplify(g_coterm)
+is.simple(g_coterm)
+#analysis components
+is.connected(g_coterm)
+assortativity.degree(graph = g_coterm,directed = F)
+# B:f(k1,k2)=(d(k1)*d(k2))^alpha
+V(g_coterm)$degree <- degree(g_coterm)
+projectingKeywordNetwork$cotermwithdegree <- merge(x = projectingKeywordNetwork$coterm,y = data.frame(id = 1:max(V(g_coterm)),jdegree = V(g_coterm)$degree),by.x = "j",by.y = "id",all.x = TRUE,sort = FALSE)
+projectingKeywordNetwork$cotermwithdegree <- merge(x = projectingKeywordNetwork$cotermwithdegree,y = data.frame(id = 1:max(V(g_coterm)),idegree = V(g_coterm)$degree),by.x = "i",by.y = "id",all.x = TRUE,sort = FALSE)
+projectingKeywordNetwork$cotermwithdegree <- merge(x = projectingKeywordNetwork$cotermwithdegree,y = data.frame(id = 1:max(V(g_coterm)),jdocfreq = V(g_coterm)$docfreq),by.x = "j",by.y = "id",all.x = TRUE,sort = FALSE)
+projectingKeywordNetwork$cotermwithdegree <- merge(x = projectingKeywordNetwork$cotermwithdegree,y = data.frame(id = 1:max(V(g_coterm)),idocfreq = V(g_coterm)$docfreq),by.x = "i",by.y = "id",all.x = TRUE,sort = FALSE)
+projectingKeywordNetwork$cotermwithdegree$percentw <- projectingKeywordNetwork$cotermwithdegree$w/sum(projectingKeywordNetwork$cotermwithdegree$w)
+projectingKeywordNetwork$cotermwithdegree$percenti <- projectingKeywordNetwork$cotermwithdegree$idocfreq/sum(V(g_coterm)$docfreq)
+projectingKeywordNetwork$cotermwithdegree$percentj <- projectingKeywordNetwork$cotermwithdegree$jdocfreq/sum(V(g_coterm)$docfreq)
+gp <- ggplot(projectingKeywordNetwork$cotermwithdegree)
+gp + geom_point(aes(x = percentw/percentj, y = percenti))
+gp + geom_point(aes(x = w/idocfreq, y = w/jdocfreq))
+gp + geom_point(aes(x = w/idocfreq, y = w))
+gp + geom_point(aes(x = log(idegree*jdegree), y = log(w)))
+gp + geom_point(aes(x = log((idegree*jdegree)^0.5/percentw), y = w))
+gp + geom_point(aes(x = ((idegree*jdegree)^0.5/w)^0.5, y = w))
+gp + geom_point(aes(x = log((idegree*jdegree)^0.5), y = log(w)))
+library(rgl)
+plot3d(x = projectingKeywordNetwork$cotermwithdegree$idegree,y = projectingKeywordNetwork$cotermwithdegree$jdegree,z = projectingKeywordNetwork$cotermwithdegree$w,type = "h")
+plot3d(x = projectingKeywordNetwork$cotermwithdegree$idegree,y = projectingKeywordNetwork$cotermwithdegree$jdegree,z = projectingKeywordNetwork$cotermwithdegree$w/sum(projectingKeywordNetwork$cotermwithdegree$w))
+plot3d(x = projectingKeywordNetwork$cotermwithdegree$idegree,y = projectingKeywordNetwork$cotermwithdegree$jdegree,z = log((projectingKeywordNetwork$cotermwithdegree$idegree*projectingKeywordNetwork$cotermwithdegree$jdegree)^0.5/projectingKeywordNetwork$cotermwithdegree$w))
+plot3d(x = projectingKeywordNetwork$cotermwithdegree$w/projectingKeywordNetwork$cotermwithdegree$idocfreq,
+       y = projectingKeywordNetwork$cotermwithdegree$w/projectingKeywordNetwork$cotermwithdegree$jdocfreq,
+       z = projectingKeywordNetwork$cotermwithdegree$w,type = "h")
+
+# C:特定语境下话题划分评价
 
 #####
 # 主题存在性检测
@@ -28,3 +96,50 @@ ND(binet, normalised=TRUE)
 # 3.paper-topic二分图证明可以构造实例？
 #####
 # C:关键词表达提取/最大生成树/可表达性
+
+###############################
+# Drawing by wordcloud 
+###############################
+library(wordcloud)
+par(mar=c(0,0,0,0))
+pal <- brewer.pal(6,"Dark2")
+png('ICIS2014Wordcloud.png', height = 300, width = 800)
+wordcloud(words=attr_tag$keyword,freq=attr_tag$weight,scale=c(5,1),min.freq=10,max.words=500,
+          random.order=F,random.color=F,rot.per=0,colors=pal,ordered.colors=F,
+          use.r.layout=F,fixed.asp=F)
+dev.off()
+###############################
+# draw graph of topic (community)
+###############################
+#ggplot drawing
+library(sna)
+#get one of the community
+g<-delete.vertices(gg_coterm,gg_coterm.com$membership!=2)
+tb <- as.matrix(get.adjacency(g))
+m <- tb
+plotcord <- data.frame(gplot.layout.kamadakawai(m,NULL))
+row.names(plotcord) <- row.names(tb)
+out <- NULL
+for(i in 1:nrow(tb)){
+  seg <- as.matrix(tb[i,tb[i,]>0])
+  if(length(seg)!=0){
+    seg <- cbind(seg,plotcord[i,]) 
+    Xend <- plotcord[row.names(seg),]
+    colnames(Xend) <- c("Xend1","Xend2")
+    seg <- cbind(seg,Xend) 
+    out <- rbind(out,seg)
+  }
+}
+png('ICIS2014.png', height = 8000, width = 8000)
+plt(out,plotcord)
+dev.off()
+###############################
+# draw better network using ggplot
+###############################
+library(ggplot2)
+plt<-function(out,plotcord){
+  p <- ggplot(data=plotcord, aes(x=X1, y=X2, label=rownames(plotcord)))+geom_point(colour="steelblue",size=40)+geom_text(size=35,vjust=-1,colour="brown",font=3)+ geom_segment(aes(x=X1, y=X2, xend = Xend1, yend = Xend2), data=out[1,], size =out[1,1]*2 , colour="grey",alpha=0.01)+theme(panel.background = element_blank()) +theme(legend.position="none")+theme(axis.title.x = element_blank(), axis.title.y = element_blank()) + theme( legend.background = element_rect(colour = NA)) + theme(panel.background = element_rect(fill = "white", colour = NA)) +theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank())
+  for(i in 2:nrow(out)){
+    p<-p+geom_segment(aes(x=X1, y=X2, xend = Xend1, yend = Xend2), data=out[i,], size =out[i,1]*12 , colour="grey",alpha=0.01)}
+  return(p)
+}
