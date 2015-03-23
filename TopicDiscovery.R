@@ -24,6 +24,7 @@ compartofeach <- paperCompart %>% group_by(compart) %>% summarise(cnt = n())
 compartofeach$cnt
 ggplot(compartofeach,aes(x = compart,y = cnt)) + geom_point()
 binetMaxCompart <- paperKeywordMatrix[row.names(paperKeywordMatrix) %in% (paperCompart %>% filter(compart==2))[,1]),]
+binetMaxCompart[which(binetMaxCompart!=0)] <- 1
 binetMaxCompart <- empty(binetMaxCompart)
 # A:degree distribution analysis
 # 结论:关键词是幂率分布,关键词的度存在长尾(少部分关键词被广泛使用,大多数关键词只在一两篇论文中使用)
@@ -36,7 +37,7 @@ degreedistr(binetMaxCompart)
 #plotModuleWeb(moduleWebObject)
 #####
 # coterm network
-# B:共词网络/二分图话题发现技术
+# B:共词网络/二分图话题发现技术 - 连边共词社团检测算法
 # 做菜类比:每一位创作者从素材话题中选取特定关键词制作论文
 # 不同目的下话题划分方式不同
 # 1.论文实例可以被类别领域清晰分割,而符合论文实例创作机制的话题也应当被该类别领域清晰分割
@@ -45,6 +46,7 @@ degreedistr(binetMaxCompart)
 #####
 #http://toreopsahl.com/tnet/two-mode-networks/projection/
 projectingKeywordNetwork <- list(keyword=colnames(binetMaxCompart),coterm=projecting_tm(t(binetMaxCompart),method = "sum"))
+projectingKeywordNetwork$coterm$id  <- 1:nrow(projectingKeywordNetwork$coterm)
 # network generation and simplify
 library(igraph)
 g_coterm <- graph.edgelist(el = as.matrix(projectingKeywordNetwork$coterm[,1:2]),directed = FALSE)
@@ -82,7 +84,73 @@ plot3d(x = projectingKeywordNetwork$cotermwithdegree$idegree,y = projectingKeywo
 plot3d(x = projectingKeywordNetwork$cotermwithdegree$w/projectingKeywordNetwork$cotermwithdegree$idocfreq,
        y = projectingKeywordNetwork$cotermwithdegree$w/projectingKeywordNetwork$cotermwithdegree$jdocfreq,
        z = projectingKeywordNetwork$cotermwithdegree$w,type = "h")
-
+# 连边共词社团检测算法
+library(foreach)
+library(doParallel)
+# edges : i j id
+# binetmatrix : paper-keyword
+edgeCommunityDetection <- function(edges,binetmatrix){
+  # calculate the similarity of each edge
+  similarity <- foreach(edge_a=iter(edges,by = 'row'),.combine=rbind) %do% {
+                  foreach(edge_b=iter(edges,by = 'row'),.combine=rbind) %do% {
+                    # similarity calculation of each
+                    simedge <- edgeSimilarity(edge_a,edge_b,binetmatrix)
+                    if((edge_a$id!=edge_b$id)&&simedge!=0&&simedge!=1)
+                      data.frame(a_id=edge_a$id,b_id=edge_b$id,sim=simedge)
+                  }
+                }
+  # ranking similarity edge pair list (decrease)
+  similarity$rank <- length(similarity$sim) - rank(similarity$sim,ties.method = "max") + 1
+  print("similarity calculation finished!")
+  # edge community tree generation
+  # edges : i j id
+  # similarity : a_id b_id sim rank
+  edgesTree <- edgeCommunityTreeGeneration(edges,similarity,1)
+  print("edge community tree generation finished!")
+  return(edgesTree)
+}
+edgeCommunityTreeGeneration <- function(edges,similarity,rank){
+  # only one cluster left
+  if(length(unique(edges[,ncol(edges)]))==1) return(edges)
+  # generate one layer of tree
+  edges <- cbind(edges,tmp=edges[,ncol(edges)])
+  colnames(edges)[ncol(edges)] <- paste("cluster",ncol(edges)-3,sep = "_")
+  edgepairs <- similarity[which(similarity$rank==rank),c("a_id","b_id")]
+  tmp <- data.frame(g1=edges[edgepairs$a_id,ncol(edges)],g2=edges[edgepairs$b_id,ncol(edges)])
+  # group of cluster combination
+  for(i in 1:length(tmp)){
+    temp <- tmp[i,]
+    edges[which(edges[,ncol(edges)]==temp$g1),ncol(edges)] <- min(temp)
+    edges[which(edges[,ncol(edges)]==temp$g2),ncol(edges)] <- min(temp)
+  }
+  # recursive
+  rank <- rank+length(which(similarity$rank==rank))-1
+  return(edgeCommunityTreeGeneration(edges,similarity,rank))
+}
+edgeSimilarity <- function(edge_a,edge_b,binetmatrix){
+  #only Edges with one same node has similarity or zero
+  if((edge_a$i==edge_b$i)&&(edge_a$j==edge_b$j)||(edge_a$i==edge_b$j)&&(edge_a$j==edge_b$i)){
+    # same edge
+    return(1)
+  }else if(edge_a$i==edge_b$i){
+    # same i node : P(jk|i)
+    return(length(which((binetmatrix[,edge_a$i]*binetmatrix[,edge_a$j]*binetmatrix[,edge_b$j])!=0))/length(which((binetmatrix[,edge_a$i])!=0)))
+  }else if(edge_a$i==edge_b$j){
+    # i node of a == j node of b : P(jk|i of a)
+    return(length(which((binetmatrix[,edge_a$i]*binetmatrix[,edge_a$j]*binetmatrix[,edge_b$i])!=0))/length(which((binetmatrix[,edge_a$i])!=0)))
+  }else if(edge_a$j==edge_b$i){
+    # j node of a == i node of b : P(ik|j of a)
+    return(length(which((binetmatrix[,edge_a$i]*binetmatrix[,edge_a$j]*binetmatrix[,edge_b$j])!=0))/length(which((binetmatrix[,edge_a$j])!=0)))
+  }else if(edge_a$j==edge_b$j){
+    # same j node : P(ik|j)
+    return(length(which((binetmatrix[,edge_a$i]*binetmatrix[,edge_a$j]*binetmatrix[,edge_b$i])!=0))/length(which((binetmatrix[,edge_a$j])!=0)))
+  }else{
+    # no same node
+    return(0)
+  }
+}
+# run!
+edgeCommTree <- edgeCommunityDetection(edges = projectingKeywordNetwork$coterm[,c(1,2,4)],binetmatrix = binetMaxCompart)
 # C:特定语境下话题划分评价
 
 #####
