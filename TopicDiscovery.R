@@ -42,6 +42,7 @@ rmTempObject()
 # coterm network
 # B:共词网络/二分图话题发现技术 - 连边共词社团检测算法
 # 做菜类比:每一位创作者从素材话题中选取特定关键词制作论文
+# 连边共词社团检测算法 - 边袋模型
 # 不同目的下话题划分方式不同
 # 1.论文实例可以被类别领域清晰分割,而符合论文实例创作机制的话题也应当被该类别领域清晰分割
 # 2.各个类别领域被非主要分配的惩罚不同（分类-杂志）
@@ -57,40 +58,8 @@ rmTempObject()
 library(foreach)
 #library(doParallel)
 library(plyr)
-# edges : i j id
-# binetmatrix : paper-keyword
-edgeCommunityDetection <- function(edges,binetmatrix){
-  # calculate the similarity of each edge
-  similarity <- 
-    ddply(edges,.(id),function(edge_a,edges,binetmatrix){
-      e <- edges[which(edges$i == edge_a$i | edges$i == edge_a$j | edges$j == edge_a$i | edges$j == edge_a$j & edges$id!=edge_a$id),]
-      print(paste(edge_a$id,nrow(e),sep = "-"))
-      ddply(e,.(id),function(edge_b,edge_a,binetmatrix){
-        # similarity calculation of each
-        simedge <- edgeSimilarity(edge_a,edge_b,binetmatrix)
-        if((edge_a$id!=edge_b$id)&&simedge!=0&&simedge!=1)
-          data.frame(a_id=edge_a$id,b_id=edge_b$id,sim=simedge)
-      },edge_a,binetmatrix,.progress = "text")
-    },edges,binetmatrix,.progress = "text")
-#   similarity <- foreach(edge_a=iter(edges,by = 'row'),.combine=rbind) %do% {
-#                   foreach(edge_b=iter(edges,by = 'row'),.combine=rbind) %do% {
-#                     # similarity calculation of each
-#                     simedge <- edgeSimilarity(edge_a,edge_b,binetmatrix)
-#                     if((edge_a$id!=edge_b$id)&&simedge!=0&&simedge!=1)
-#                       data.frame(a_id=edge_a$id,b_id=edge_b$id,sim=simedge)
-#                   }
-#                 }
-  # ranking similarity edge pair list (decrease)
-  similarity$rank <- length(similarity$sim) - rank(similarity$sim,ties.method = "max") + 1
-  print("similarity calculation finished!")
-  # edge community tree generation
-  # edges : i j id
-  # similarity : a_id b_id sim rank
-  edgesTree <- edgeCommunityTreeGeneration(edges,similarity,1)
-  print("edge community tree generation finished!")
-  return(edgesTree)
-}
-edgeCommunityTreeGeneration <- function(edges,similarity,rank){
+# core algorithms
+edgeCommunityTreeGeneration <- function(edges,similarity,rank=1){
   # only one cluster left
   if(length(unique(edges[,ncol(edges)]))==1) return(edges)
   # generate one layer of tree
@@ -136,13 +105,42 @@ addPersistentObjects("edgeCommunityDetection")
 addPersistentObjects("edgeCommunityTreeGeneration")
 addPersistentObjects("edgeSimilarity")
 rmTempObject()
-# run!
 save(file = "edgeCommunityDetection.RData",list = c("edgeCommunityDetection",
                                                     "edgeCommunityTreeGeneration",
                                                     "edgeSimilarity",
                                                     "projectingKeywordNetwork",
                                                     "binetMaxCompart"))
-edgeCommTree <- edgeCommunityDetection(edges = projectingKeywordNetwork$coterm[,c(1,2,4)],binetmatrix = binetMaxCompart)
+# run
+# edges : i j id
+# binetmatrix : paper-keyword
+edges <- projectingKeywordNetwork$coterm[,c(1,2,4)]
+binetmatrix <- binetMaxCompart
+# calculate the similarity of each edge
+similarity <- 
+  ddply(edges,.(id),function(edge_a,edges,binetmatrix){
+    e <- edges[which(edges$i == edge_a$i | edges$i == edge_a$j | edges$j == edge_a$i | edges$j == edge_a$j & edges$id!=edge_a$id),]
+    print(paste(edge_a$id,nrow(e),sep = "-"))
+    ddply(e,.(id),function(edge_b,edge_a,binetmatrix){
+      # similarity calculation of each
+      simedge <- edgeSimilarity(edge_a,edge_b,binetmatrix)
+      if((edge_a$id!=edge_b$id)&&simedge!=0&&simedge!=1)
+        data.frame(a_id=edge_a$id,b_id=edge_b$id,sim=simedge)
+    },edge_a,binetmatrix,.progress = "text")
+  },edges,binetmatrix,.progress = "text")
+#   similarity <- foreach(edge_a=iter(edges,by = 'row'),.combine=rbind) %do% {
+#                   foreach(edge_b=iter(edges,by = 'row'),.combine=rbind) %do% {
+#                     # similarity calculation of each
+#                     simedge <- edgeSimilarity(edge_a,edge_b,binetmatrix)
+#                     if((edge_a$id!=edge_b$id)&&simedge!=0&&simedge!=1)
+#                       data.frame(a_id=edge_a$id,b_id=edge_b$id,sim=simedge)
+#                   }
+#                 }
+# ranking similarity edge pair list (decrease)
+similarity$rank <- length(similarity$sim) - rank(similarity$sim,ties.method = "max") + 1
+# edge community tree generation
+# edges : i j id
+# similarity : a_id b_id sim rank
+edgesCommunityTree <- edgeCommunityTreeGeneration(edges,similarity)
 # C:特定语境下话题划分评价
 
 #####
