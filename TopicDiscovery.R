@@ -23,7 +23,7 @@ paperCompart <- data.frame(paper=row.names(binetCompart$cweb),compart=-apply(bin
 compartofeach <- paperCompart %>% group_by(compart) %>% summarise(cnt = n())
 compartofeach$cnt
 ggplot(compartofeach,aes(x = compart,y = cnt)) + geom_point()
-binetMaxCompart <- paperKeywordMatrix[row.names(paperKeywordMatrix) %in% (paperCompart %>% filter(compart==2))[,1]),]
+binetMaxCompart <- paperKeywordMatrix[row.names(paperKeywordMatrix) %in% (paperCompart %>% filter(compart==2))[,1],]
 binetMaxCompart[which(binetMaxCompart!=0)] <- 1
 binetMaxCompart <- empty(binetMaxCompart)
 # A:degree distribution analysis
@@ -31,6 +31,9 @@ binetMaxCompart <- empty(binetMaxCompart)
 # 根据优先连接的规则,度高的关键词更容易被论文使用
 # 并且二分网络下度高的关键词其投影(共词网络)的关键词度也高
 degreedistr(binetMaxCompart)
+# clean useless object
+addPersistentObjects("binetMaxCompart")
+rmTempObject()
 #moduleWebObject  <-  computeModules(binetMaxCompart)
 #moduleList  <-  listModuleInformation(moduleWebObject)
 #moduleCZ <- czvalues(moduleWebObject)
@@ -47,58 +50,36 @@ degreedistr(binetMaxCompart)
 #http://toreopsahl.com/tnet/two-mode-networks/projection/
 projectingKeywordNetwork <- list(keyword=colnames(binetMaxCompart),coterm=projecting_tm(t(binetMaxCompart),method = "sum"))
 projectingKeywordNetwork$coterm$id  <- 1:nrow(projectingKeywordNetwork$coterm)
-# network generation and simplify
-library(igraph)
-g_coterm <- graph.edgelist(el = as.matrix(projectingKeywordNetwork$coterm[,1:2]),directed = FALSE)
-g_coterm$name  <- "co-term"
-E(g_coterm)$weight <- projectingKeywordNetwork$coterm[,3]
-V(g_coterm)$keyword <- projectingKeywordNetwork$keyword
-V(g_coterm)$docfreq <- colSums(binetMaxCompart)
-is.simple(g_coterm)
-g_coterm <- simplify(g_coterm)
-is.simple(g_coterm)
-#analysis components
-is.connected(g_coterm)
-assortativity.degree(graph = g_coterm,directed = F)
-# B:f(k1,k2)=(d(k1)*d(k2))^alpha
-V(g_coterm)$degree <- degree(g_coterm)
-projectingKeywordNetwork$cotermwithdegree <- merge(x = projectingKeywordNetwork$coterm,y = data.frame(id = 1:max(V(g_coterm)),jdegree = V(g_coterm)$degree),by.x = "j",by.y = "id",all.x = TRUE,sort = FALSE)
-projectingKeywordNetwork$cotermwithdegree <- merge(x = projectingKeywordNetwork$cotermwithdegree,y = data.frame(id = 1:max(V(g_coterm)),idegree = V(g_coterm)$degree),by.x = "i",by.y = "id",all.x = TRUE,sort = FALSE)
-projectingKeywordNetwork$cotermwithdegree <- merge(x = projectingKeywordNetwork$cotermwithdegree,y = data.frame(id = 1:max(V(g_coterm)),jdocfreq = V(g_coterm)$docfreq),by.x = "j",by.y = "id",all.x = TRUE,sort = FALSE)
-projectingKeywordNetwork$cotermwithdegree <- merge(x = projectingKeywordNetwork$cotermwithdegree,y = data.frame(id = 1:max(V(g_coterm)),idocfreq = V(g_coterm)$docfreq),by.x = "i",by.y = "id",all.x = TRUE,sort = FALSE)
-projectingKeywordNetwork$cotermwithdegree$percentw <- projectingKeywordNetwork$cotermwithdegree$w/sum(projectingKeywordNetwork$cotermwithdegree$w)
-projectingKeywordNetwork$cotermwithdegree$percenti <- projectingKeywordNetwork$cotermwithdegree$idocfreq/sum(V(g_coterm)$docfreq)
-projectingKeywordNetwork$cotermwithdegree$percentj <- projectingKeywordNetwork$cotermwithdegree$jdocfreq/sum(V(g_coterm)$docfreq)
-gp <- ggplot(projectingKeywordNetwork$cotermwithdegree)
-gp + geom_point(aes(x = percentw/percentj, y = percenti))
-gp + geom_point(aes(x = w/idocfreq, y = w/jdocfreq))
-gp + geom_point(aes(x = w/idocfreq, y = w))
-gp + geom_point(aes(x = log(idegree*jdegree), y = log(w)))
-gp + geom_point(aes(x = log((idegree*jdegree)^0.5/percentw), y = w))
-gp + geom_point(aes(x = ((idegree*jdegree)^0.5/w)^0.5, y = w))
-gp + geom_point(aes(x = log((idegree*jdegree)^0.5), y = log(w)))
-library(rgl)
-plot3d(x = projectingKeywordNetwork$cotermwithdegree$idegree,y = projectingKeywordNetwork$cotermwithdegree$jdegree,z = projectingKeywordNetwork$cotermwithdegree$w,type = "h")
-plot3d(x = projectingKeywordNetwork$cotermwithdegree$idegree,y = projectingKeywordNetwork$cotermwithdegree$jdegree,z = projectingKeywordNetwork$cotermwithdegree$w/sum(projectingKeywordNetwork$cotermwithdegree$w))
-plot3d(x = projectingKeywordNetwork$cotermwithdegree$idegree,y = projectingKeywordNetwork$cotermwithdegree$jdegree,z = log((projectingKeywordNetwork$cotermwithdegree$idegree*projectingKeywordNetwork$cotermwithdegree$jdegree)^0.5/projectingKeywordNetwork$cotermwithdegree$w))
-plot3d(x = projectingKeywordNetwork$cotermwithdegree$w/projectingKeywordNetwork$cotermwithdegree$idocfreq,
-       y = projectingKeywordNetwork$cotermwithdegree$w/projectingKeywordNetwork$cotermwithdegree$jdocfreq,
-       z = projectingKeywordNetwork$cotermwithdegree$w,type = "h")
+# clean useless object
+addPersistentObjects("projectingKeywordNetwork")
+rmTempObject()
 # 连边共词社团检测算法
 library(foreach)
-library(doParallel)
+#library(doParallel)
+library(plyr)
 # edges : i j id
 # binetmatrix : paper-keyword
 edgeCommunityDetection <- function(edges,binetmatrix){
   # calculate the similarity of each edge
-  similarity <- foreach(edge_a=iter(edges,by = 'row'),.combine=rbind) %do% {
-                  foreach(edge_b=iter(edges,by = 'row'),.combine=rbind) %do% {
-                    # similarity calculation of each
-                    simedge <- edgeSimilarity(edge_a,edge_b,binetmatrix)
-                    if((edge_a$id!=edge_b$id)&&simedge!=0&&simedge!=1)
-                      data.frame(a_id=edge_a$id,b_id=edge_b$id,sim=simedge)
-                  }
-                }
+  similarity <- 
+    ddply(edges,.(id),function(edge_a,edges,binetmatrix){
+      e <- edges[which(edges$i == edge_a$i | edges$i == edge_a$j | edges$j == edge_a$i | edges$j == edge_a$j & edges$id!=edge_a$id),]
+      print(paste(edge_a$id,nrow(e),sep = "-"))
+      ddply(e,.(id),function(edge_b,edge_a,binetmatrix){
+        # similarity calculation of each
+        simedge <- edgeSimilarity(edge_a,edge_b,binetmatrix)
+        if((edge_a$id!=edge_b$id)&&simedge!=0&&simedge!=1)
+          data.frame(a_id=edge_a$id,b_id=edge_b$id,sim=simedge)
+      },edge_a,binetmatrix,.progress = "text")
+    },edges,binetmatrix,.progress = "text")
+#   similarity <- foreach(edge_a=iter(edges,by = 'row'),.combine=rbind) %do% {
+#                   foreach(edge_b=iter(edges,by = 'row'),.combine=rbind) %do% {
+#                     # similarity calculation of each
+#                     simedge <- edgeSimilarity(edge_a,edge_b,binetmatrix)
+#                     if((edge_a$id!=edge_b$id)&&simedge!=0&&simedge!=1)
+#                       data.frame(a_id=edge_a$id,b_id=edge_b$id,sim=simedge)
+#                   }
+#                 }
   # ranking similarity edge pair list (decrease)
   similarity$rank <- length(similarity$sim) - rank(similarity$sim,ties.method = "max") + 1
   print("similarity calculation finished!")
@@ -125,6 +106,7 @@ edgeCommunityTreeGeneration <- function(edges,similarity,rank){
   }
   # recursive
   rank <- rank+length(which(similarity$rank==rank))-1
+  print(paste(ncol(edges)-3,"generation finished!",sep = "-"))
   return(edgeCommunityTreeGeneration(edges,similarity,rank))
 }
 edgeSimilarity <- function(edge_a,edge_b,binetmatrix){
@@ -149,7 +131,17 @@ edgeSimilarity <- function(edge_a,edge_b,binetmatrix){
     return(0)
   }
 }
+# clean useless object
+addPersistentObjects("edgeCommunityDetection")
+addPersistentObjects("edgeCommunityTreeGeneration")
+addPersistentObjects("edgeSimilarity")
+rmTempObject()
 # run!
+save(file = "edgeCommunityDetection.RData",list = c("edgeCommunityDetection",
+                                                    "edgeCommunityTreeGeneration",
+                                                    "edgeSimilarity",
+                                                    "projectingKeywordNetwork",
+                                                    "binetMaxCompart"))
 edgeCommTree <- edgeCommunityDetection(edges = projectingKeywordNetwork$coterm[,c(1,2,4)],binetmatrix = binetMaxCompart)
 # C:特定语境下话题划分评价
 
