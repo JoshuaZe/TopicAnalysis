@@ -105,11 +105,6 @@ addPersistentObjects("edgeCommunityDetection")
 addPersistentObjects("edgeCommunityTreeGeneration")
 addPersistentObjects("edgeSimilarity")
 rmTempObject()
-save(file = "edgeCommunityDetection.RData",list = c("edgeCommunityDetection",
-                                                    "edgeCommunityTreeGeneration",
-                                                    "edgeSimilarity",
-                                                    "projectingKeywordNetwork",
-                                                    "binetMaxCompart"))
 # run
 # edges : i j id
 # binetmatrix : paper-keyword
@@ -118,7 +113,7 @@ binetmatrix <- binetMaxCompart
 # calculate the similarity of each edge
 similarity <- 
   ddply(edges,.(id),function(edge_a,edges,binetmatrix){
-    e <- edges[which(edges$i == edge_a$i | edges$i == edge_a$j | edges$j == edge_a$i | edges$j == edge_a$j & edges$id!=edge_a$id),]
+    e <- edges[which(edges$i == edge_a$i | edges$i == edge_a$j | edges$j == edge_a$i | edges$j == edge_a$j & edges$id>edge_a$id),]
     print(paste(edge_a$id,nrow(e),sep = "-"))
     ddply(e,.(id),function(edge_b,edge_a,binetmatrix){
       # similarity calculation of each
@@ -137,6 +132,12 @@ similarity <-
 #                 }
 # ranking similarity edge pair list (decrease)
 similarity$rank <- length(similarity$sim) - rank(similarity$sim,ties.method = "max") + 1
+save(file = "edgeCommunityDetection.RData",list = c("edgeCommunityDetection",
+                                                    "edgeCommunityTreeGeneration",
+                                                    "edgeSimilarity",
+                                                    "projectingKeywordNetwork",
+                                                    "binetMaxCompart",
+                                                    "similarity"))
 # edge community tree generation
 # edges : i j id
 # similarity : a_id b_id sim rank
