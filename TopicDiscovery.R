@@ -140,7 +140,7 @@ d_ply(edges,.(id),function(edge_a,edges,binetmatrix){
 #                       data.frame(a_id=edge_a$id,b_id=edge_b$id,sim=simedge)
 #                   }
 #                 }
-#read.table()
+similarity <- read.table(file = "edgeSimilarity",header = F,sep = "\t",col.names = c("a_id","b_id","sim"),stringsAsFactors = F)
 # ranking similarity edge pair list (decrease)
 similarity$rank <- length(similarity$sim) - rank(similarity$sim,ties.method = "max") + 1
 # edge community tree generation
