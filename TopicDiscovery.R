@@ -70,10 +70,11 @@ edgeCommunityTreeGeneration <- function(edges,similarity,rank=1){
   edgepairs <- similarity[which(similarity$rank==rank),c("a_id","b_id")]
   tmp <- data.frame(g1=edges[edgepairs$a_id,ncol(edges)],g2=edges[edgepairs$b_id,ncol(edges)])
   # group of cluster combination
-  for(i in 1:length(tmp)){
-    temp <- tmp[i,]
-    edges[which(edges[,ncol(edges)]==temp$g1),ncol(edges)] <- min(temp)
-    edges[which(edges[,ncol(edges)]==temp$g2),ncol(edges)] <- min(temp)
+  for(i in 1:nrow(edgepairs)){
+    e_a <- edges[edgepairs$a_id,ncol(edges)]
+    e_b <- edges[edgepairs$b_id,ncol(edges)]
+    edges[which(edges[,ncol(edges)]==e_a),ncol(edges)] <- min(e_a,e_b)
+    edges[which(edges[,ncol(edges)]==e_b),ncol(edges)] <- min(e_a,e_b)
   }
   # recursive
   rank <- rank+length(which(similarity$rank==rank))-1
