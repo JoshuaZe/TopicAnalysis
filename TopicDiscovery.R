@@ -68,7 +68,6 @@ edgeCommunityTreeGeneration <- function(edges,similarity,rank=1){
   edges <- cbind(edges,tmp=edges[,ncol(edges)])
   colnames(edges)[ncol(edges)] <- paste("cluster",ncol(edges)-3,sep = "_")
   edgepairs <- similarity[which(similarity$rank==rank),c("a_id","b_id")]
-  tmp <- data.frame(g1=edges[edgepairs$a_id,ncol(edges)],g2=edges[edgepairs$b_id,ncol(edges)])
   # group of cluster combination
   for(i in 1:nrow(edgepairs)){
     e_a <- edges[edgepairs$a_id,ncol(edges)]
