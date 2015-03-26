@@ -61,7 +61,7 @@ library(plyr)
 library(data.table)
 #library(dplyr)
 # core algorithms
-edgeCommunityTreeGeneration <- function(edges,similarity,rank=1){
+edgeCommunityTreeGeneration <- function(edges,similarity,rankNo=1){
   # only one cluster left
   #if(length(unique(edges[,ncol(edges)]))==1) return(edges)
   if(nrow(unique(edges[,ncol(edges),with=F]))==1) return(edges)
@@ -69,15 +69,15 @@ edgeCommunityTreeGeneration <- function(edges,similarity,rank=1){
   edges$tmp <- edges[,ncol(edges),with=F]
   setnames(edges,"tmp",paste("cluster",ncol(edges)-3,sep = "_"))
   #colnames(edges)[ncol(edges)] <- paste("cluster",ncol(edges)-3,sep = "_")
-  edgepairs <- similarity[which(similarity$rank==rank),c("a_id","b_id")]
+  edgepairs <- similarity[rank==rankNo,c("a_id","b_id"),with = F]
   edgepairs$id <- 1:nrow(edgepairs)
-  print(paste(ncol(edges)-3,rank,nrow(edgepairs),"generation runing!",sep = "-"))
+  print(paste(ncol(edges)-3,rankNo,nrow(edgepairs),"generation runing!",sep = "-"))
   # group of cluster combination
   d_ply(edgepairs,.(id),function(p,edges){
     e_a <- as.integer(edges[p$a_id,ncol(edges),with=F])
     e_b <- as.integer(edges[p$b_id,ncol(edges),with=F])
-    edges[which(edges[,ncol(edges),with=F]==e_a),ncol(edges),with=F] <- min(e_a,e_b)
-    edges[which(edges[,ncol(edges),with=F]==e_b),ncol(edges),with=F] <- min(e_a,e_b)
+    set(edges,which(edges[,ncol(edges),with=F]==e_a),ncol(edges),min(e_a,e_b))
+    set(edges,which(edges[,ncol(edges),with=F]==e_b),ncol(edges),min(e_a,e_b))
   },edges,.progress = "text")
 #   for(i in 1:nrow(edgepairs)){
 #     e_a <- edges[edgepairs$a_id,ncol(edges)]
@@ -86,7 +86,7 @@ edgeCommunityTreeGeneration <- function(edges,similarity,rank=1){
 #     edges[which(edges[,ncol(edges)]==e_b),ncol(edges)] <- min(e_a,e_b)
 #   }
   # recursive
-  rank <- rank+length(which(similarity$rank==rank))-1
+  rankNo <- rankNo + nrow(similarity[rank==rankNo])
   #write.table(edges,file = "edgeCommunityTree",quote = F,sep = "\t",row.names = F,col.names = T)
   return(edgeCommunityTreeGeneration(edges,similarity,rank))
 }
@@ -153,6 +153,7 @@ d_ply(edges,.(id),function(edge_a,edges,binetmatrix){
 similarity <- read.table(file = "edgeSimilarity",header = F,sep = "\t",col.names = c("a_id","b_id","sim"),stringsAsFactors = F)
 # ranking similarity edge pair list (decrease)
 similarity$rank <- length(similarity$sim) - rank(similarity$sim,ties.method = "max") + 1
+similarity <- as.data.table(similarity)
 # clean useless object
 addPersistentObjects("similarity")
 rmTempObject()
