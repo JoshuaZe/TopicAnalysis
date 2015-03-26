@@ -63,22 +63,31 @@ library(data.table)
 # core algorithms
 edgeCommunityTreeGeneration <- function(edges,similarity,rank=1){
   # only one cluster left
-  if(length(unique(edges[,ncol(edges)]))==1) return(edges)
+  #if(length(unique(edges[,ncol(edges)]))==1) return(edges)
+  if(nrow(unique(edges[,ncol(edges),with=F]))==1) return(edges)
   # generate one layer of tree
-  edges <- cbind(edges,tmp=edges[,ncol(edges)])
-  colnames(edges)[ncol(edges)] <- paste("cluster",ncol(edges)-3,sep = "_")
+  edges$tmp <- edges[,ncol(edges),with=F]
+  setnames(edges,"tmp",paste("cluster",ncol(edges)-3,sep = "_"))
+  #colnames(edges)[ncol(edges)] <- paste("cluster",ncol(edges)-3,sep = "_")
   edgepairs <- similarity[which(similarity$rank==rank),c("a_id","b_id")]
+  edgepairs$id <- 1:nrow(edgepairs)
+  print(paste(ncol(edges)-3,rank,nrow(edgepairs),"generation runing!",sep = "-"))
   # group of cluster combination
-  for(i in 1:nrow(edgepairs)){
-    e_a <- edges[edgepairs$a_id,ncol(edges)]
-    e_b <- edges[edgepairs$b_id,ncol(edges)]
-    edges[which(edges[,ncol(edges)]==e_a),ncol(edges)] <- min(e_a,e_b)
-    edges[which(edges[,ncol(edges)]==e_b),ncol(edges)] <- min(e_a,e_b)
-  }
+  d_ply(edgepairs,.(id),function(p,edges){
+    e_a <- as.integer(edges[p$a_id,ncol(edges),with=F])
+    e_b <- as.integer(edges[p$b_id,ncol(edges),with=F])
+    edges[which(edges[,ncol(edges),with=F]==e_a),ncol(edges),with=F] <- min(e_a,e_b)
+    edges[which(edges[,ncol(edges),with=F]==e_b),ncol(edges),with=F] <- min(e_a,e_b)
+  },edges,.progress = "text")
+#   for(i in 1:nrow(edgepairs)){
+#     e_a <- edges[edgepairs$a_id,ncol(edges)]
+#     e_b <- edges[edgepairs$b_id,ncol(edges)]
+#     edges[which(edges[,ncol(edges)]==e_a),ncol(edges)] <- min(e_a,e_b)
+#     edges[which(edges[,ncol(edges)]==e_b),ncol(edges)] <- min(e_a,e_b)
+#   }
   # recursive
   rank <- rank+length(which(similarity$rank==rank))-1
-  print(paste(ncol(edges)-3,"generation finished!",sep = "-"))
-  write.table(edges,file = "edgeCommunityTree",quote = F,sep = "\t",row.names = F,col.names = T)
+  #write.table(edges,file = "edgeCommunityTree",quote = F,sep = "\t",row.names = F,col.names = T)
   return(edgeCommunityTreeGeneration(edges,similarity,rank))
 }
 edgeSimilarity <- function(edge_a,edge_b,binetmatrix){
