@@ -78,6 +78,7 @@ edgeCommunityTreeGeneration <- function(edges,similarity,rank=1){
   # recursive
   rank <- rank+length(which(similarity$rank==rank))-1
   print(paste(ncol(edges)-3,"generation finished!",sep = "-"))
+  write.table(edges,file = "edgeCommunityTree",quote = F,sep = "\t",row.names = F,col.names = T)
   return(edgeCommunityTreeGeneration(edges,similarity,rank))
 }
 edgeSimilarity <- function(edge_a,edge_b,binetmatrix){
@@ -143,6 +144,11 @@ d_ply(edges,.(id),function(edge_a,edges,binetmatrix){
 similarity <- read.table(file = "edgeSimilarity",header = F,sep = "\t",col.names = c("a_id","b_id","sim"),stringsAsFactors = F)
 # ranking similarity edge pair list (decrease)
 similarity$rank <- length(similarity$sim) - rank(similarity$sim,ties.method = "max") + 1
+# clean useless object
+addPersistentObjects("similarity")
+rmTempObject()
+# save .RData
+save(file = "VIP.RData",list = memoryWhiteList)
 # edge community tree generation
 # edges : i j id
 # similarity : a_id b_id sim rank
