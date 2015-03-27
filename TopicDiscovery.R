@@ -69,7 +69,7 @@ edgeCommunityTreeGeneration <- function(edges,similarity,rankNo=1){
   edges$tmp <- edges[,ncol(edges),with=F]
   setnames(edges,"tmp",paste("cluster",ncol(edges)-3,sep = "_"))
   #colnames(edges)[ncol(edges)] <- paste("cluster",ncol(edges)-3,sep = "_")
-  edgepairs <- similarity[rank==rankNo,c("a_id","b_id"),with = F]
+  edgepairs <- similarity[which(similarity$rank==rankNo),]
   edgepairs$id <- 1:nrow(edgepairs)
   print(paste(ncol(edges)-3,rankNo,nrow(edgepairs),"generation runing!",sep = "-"))
   # group of cluster combination
@@ -86,9 +86,31 @@ edgeCommunityTreeGeneration <- function(edges,similarity,rankNo=1){
 #     edges[which(edges[,ncol(edges)]==e_b),ncol(edges)] <- min(e_a,e_b)
 #   }
   # recursive
-  rankNo <- rankNo + nrow(similarity[rank==rankNo])
-  #write.table(edges,file = "edgeCommunityTree",quote = F,sep = "\t",row.names = F,col.names = T)
+  write.table(edges,file = "edgeCommunityTree",quote = F,sep = "\t",row.names = F,col.names = T)
+  print(paste(ncol(edges)-3,rankNo,nrow(edgepairs),"generation finished!",sep = "-"))
+  rankNo <- rankNo + nrow(similarity[which(similarity$rank==rankNo),])
   return(edgeCommunityTreeGeneration(edges,similarity,rank))
+}
+edgeCommunityTreeGeneration <- function(edges,similarity,rankNo=1){
+  while((nrow(unique(edges[,ncol(edges),with=F]))!=1)&(rankNo <= max(similarity$rank))){
+    # generate one layer of tree
+    edges$tmp <- edges[,ncol(edges),with=F]
+    setnames(edges,"tmp",paste("cluster",ncol(edges)-3,sep = "_"))
+    edgepairs <- similarity[which(similarity$rank==rankNo),]
+    edgepairs$id <- 1:nrow(edgepairs)
+    print(paste(ncol(edges)-3,rankNo,nrow(edgepairs),"generation runing!",sep = "-"))
+    # group of cluster combination
+    d_ply(edgepairs,.(id),function(p,edges){
+      e_a <- as.integer(edges[p$a_id,ncol(edges),with=F])
+      e_b <- as.integer(edges[p$b_id,ncol(edges),with=F])
+      set(edges,which(edges[,ncol(edges),with=F]==e_a),ncol(edges),min(e_a,e_b))
+      set(edges,which(edges[,ncol(edges),with=F]==e_b),ncol(edges),min(e_a,e_b))
+    },edges,.progress = "text")
+    write.table(edges,file = "edgeCommunityTree",quote = F,sep = "\t",row.names = F,col.names = T)
+    print(paste(ncol(edges)-3,rankNo,nrow(edgepairs),"generation finished!",sep = "-"))
+    rankNo <- rankNo + nrow(similarity[which(similarity$rank==rankNo),])
+  }
+  return(edges)
 }
 edgeSimilarity <- function(edge_a,edge_b,binetmatrix){
   #only Edges with one same node has similarity or zero
@@ -163,6 +185,12 @@ save(file = "VIP.RData",list = memoryWhiteList)
 # edges : i j id
 # similarity : a_id b_id sim rank
 edgesCommunityTree <- edgeCommunityTreeGeneration(edges,similarity)
+edgesTree <- read.table(file = "edgeCommunityTree",header = T,sep = "\t",stringsAsFactors = F)
+edgesTree <- as.data.table(edgesTree)
+edgesTree <- edgesTree[,1:4,with=F]
+rankNo <- 1 #Just Finished
+rankNo <- rankNo + nrow(similarity[which(similarity$rank==rankNo),])
+edgesCommunityTree <- edgeCommunityTreeGeneration(edgesTree,similarity,rankNo)
 save(file = "edgeCommunityResult.RData",list = c("edgeCommunityDetection",
                                                     "edgeCommunityTreeGeneration",
                                                     "edgeSimilarity",
