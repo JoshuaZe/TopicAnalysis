@@ -61,36 +61,36 @@ library(plyr)
 library(data.table)
 #library(dplyr)
 # core algorithms
-edgeCommunityTreeGeneration <- function(edges,similarity,rankNo=1){
-  # only one cluster left
-  #if(length(unique(edges[,ncol(edges)]))==1) return(edges)
-  if(nrow(unique(edges[,ncol(edges),with=F]))==1) return(edges)
-  # generate one layer of tree
-  edges$tmp <- edges[,ncol(edges),with=F]
-  setnames(edges,"tmp",paste("cluster",ncol(edges)-3,sep = "_"))
-  #colnames(edges)[ncol(edges)] <- paste("cluster",ncol(edges)-3,sep = "_")
-  edgepairs <- similarity[which(similarity$rank==rankNo),]
-  edgepairs$id <- 1:nrow(edgepairs)
-  print(paste(ncol(edges)-3,rankNo,nrow(edgepairs),"generation runing!",sep = "-"))
-  # group of cluster combination
-  d_ply(edgepairs,.(id),function(p,edges){
-    e_a <- as.integer(edges[p$a_id,ncol(edges),with=F])
-    e_b <- as.integer(edges[p$b_id,ncol(edges),with=F])
-    set(edges,which(edges[,ncol(edges),with=F]==e_a),ncol(edges),min(e_a,e_b))
-    set(edges,which(edges[,ncol(edges),with=F]==e_b),ncol(edges),min(e_a,e_b))
-  },edges,.progress = "text")
-#   for(i in 1:nrow(edgepairs)){
-#     e_a <- edges[edgepairs$a_id,ncol(edges)]
-#     e_b <- edges[edgepairs$b_id,ncol(edges)]
-#     edges[which(edges[,ncol(edges)]==e_a),ncol(edges)] <- min(e_a,e_b)
-#     edges[which(edges[,ncol(edges)]==e_b),ncol(edges)] <- min(e_a,e_b)
-#   }
-  # recursive
-  write.table(edges,file = "edgeCommunityTree",quote = F,sep = "\t",row.names = F,col.names = T)
-  print(paste(ncol(edges)-3,rankNo,nrow(edgepairs),"generation finished!",sep = "-"))
-  rankNo <- rankNo + nrow(similarity[which(similarity$rank==rankNo),])
-  return(edgeCommunityTreeGeneration(edges,similarity,rank))
-}
+# edgeCommunityTreeGeneration <- function(edges,similarity,rankNo=1){
+#   # only one cluster left
+#   #if(length(unique(edges[,ncol(edges)]))==1) return(edges)
+#   if(nrow(unique(edges[,ncol(edges),with=F]))==1) return(edges)
+#   # generate one layer of tree
+#   edges$tmp <- edges[,ncol(edges),with=F]
+#   setnames(edges,"tmp",paste("cluster",ncol(edges)-3,sep = "_"))
+#   #colnames(edges)[ncol(edges)] <- paste("cluster",ncol(edges)-3,sep = "_")
+#   edgepairs <- similarity[which(similarity$rank==rankNo),]
+#   edgepairs$id <- 1:nrow(edgepairs)
+#   print(paste(ncol(edges)-3,rankNo,nrow(edgepairs),"generation runing!",sep = "-"))
+#   # group of cluster combination
+#   d_ply(edgepairs,.(id),function(p,edges){
+#     e_a <- as.integer(edges[p$a_id,ncol(edges),with=F])
+#     e_b <- as.integer(edges[p$b_id,ncol(edges),with=F])
+#     set(edges,which(edges[,ncol(edges),with=F]==e_a),ncol(edges),min(e_a,e_b))
+#     set(edges,which(edges[,ncol(edges),with=F]==e_b),ncol(edges),min(e_a,e_b))
+#   },edges,.progress = "text")
+# #   for(i in 1:nrow(edgepairs)){
+# #     e_a <- edges[edgepairs$a_id,ncol(edges)]
+# #     e_b <- edges[edgepairs$b_id,ncol(edges)]
+# #     edges[which(edges[,ncol(edges)]==e_a),ncol(edges)] <- min(e_a,e_b)
+# #     edges[which(edges[,ncol(edges)]==e_b),ncol(edges)] <- min(e_a,e_b)
+# #   }
+#   # recursive
+#   write.table(edges,file = "edgeCommunityTree",quote = F,sep = "\t",row.names = F,col.names = T)
+#   print(paste(ncol(edges)-3,rankNo,nrow(edgepairs),"generation finished!",sep = "-"))
+#   rankNo <- rankNo + nrow(similarity[which(similarity$rank==rankNo),])
+#   return(edgeCommunityTreeGeneration(edges,similarity,rank))
+# }
 edgeCommunityTreeGeneration <- function(edges,similarity,rankNo=1){
   while((nrow(unique(edges[,ncol(edges),with=F]))!=1)&(rankNo <= max(similarity$rank))){
     # generate one layer of tree
@@ -112,26 +112,59 @@ edgeCommunityTreeGeneration <- function(edges,similarity,rankNo=1){
   }
   return(edges)
 }
+# old
+# edgeSimilarity <- function(edge_a,edge_b,binetmatrix){
+#   #only Edges with one same node has similarity or zero
+#   if(((edge_a$i==edge_b$i)&(edge_a$j==edge_b$j))|((edge_a$i==edge_b$j)&(edge_a$j==edge_b$i))){
+#     # same edge
+#     return(1)
+#   }else if(edge_a$i==edge_b$i){
+#     # same i node : P(jk|i)
+#     return(length(which((binetmatrix[,edge_a$i]*binetmatrix[,edge_a$j]*binetmatrix[,edge_b$j])!=0))/length(which((binetmatrix[,edge_a$i])!=0)))
+#   }else if(edge_a$i==edge_b$j){
+#     # i node of a == j node of b : P(jk|i of a)
+#     return(length(which((binetmatrix[,edge_a$i]*binetmatrix[,edge_a$j]*binetmatrix[,edge_b$i])!=0))/length(which((binetmatrix[,edge_a$i])!=0)))
+#   }else if(edge_a$j==edge_b$i){
+#     # j node of a == i node of b : P(ik|j of a)
+#     return(length(which((binetmatrix[,edge_a$i]*binetmatrix[,edge_a$j]*binetmatrix[,edge_b$j])!=0))/length(which((binetmatrix[,edge_a$j])!=0)))
+#   }else if(edge_a$j==edge_b$j){
+#     # same j node : P(ik|j)
+#     return(length(which((binetmatrix[,edge_a$i]*binetmatrix[,edge_a$j]*binetmatrix[,edge_b$i])!=0))/length(which((binetmatrix[,edge_a$j])!=0)))
+#   }else{
+#     # no same node
+#     return(-1)
+#   }
+# }
 edgeSimilarity <- function(edge_a,edge_b,binetmatrix){
+  alpha <- 0.2
+  beta <- 0.05
   #only Edges with one same node has similarity or zero
   if(((edge_a$i==edge_b$i)&(edge_a$j==edge_b$j))|((edge_a$i==edge_b$j)&(edge_a$j==edge_b$i))){
     # same edge
     return(1)
   }else if(edge_a$i==edge_b$i){
     # same i node : P(jk|i)
-    return(length(which((binetmatrix[,edge_a$i]*binetmatrix[,edge_a$j]*binetmatrix[,edge_b$j])!=0))/length(which((binetmatrix[,edge_a$i])!=0)))
+    return(((1-alpha)*length(which((binetmatrix[,edge_a$i]*binetmatrix[,edge_a$j]*binetmatrix[,edge_b$j])!=0))+
+              (alpha-beta)*min(length(which((binetmatrix[,edge_a$i]*binetmatrix[,edge_a$j])!=0)),length(which((binetmatrix[,edge_a$i]*binetmatrix[,edge_b$j])!=0)),length(which((binetmatrix[,edge_a$j]*binetmatrix[,edge_b$j])!=0)))+
+              beta*min(length(which(binetmatrix[,edge_a$i]!=0)),length(which(binetmatrix[,edge_a$j]!=0)),length(which(binetmatrix[,edge_b$j]!=0))))/length(which((binetmatrix[,edge_a$i])!=0)))
   }else if(edge_a$i==edge_b$j){
     # i node of a == j node of b : P(jk|i of a)
-    return(length(which((binetmatrix[,edge_a$i]*binetmatrix[,edge_a$j]*binetmatrix[,edge_b$i])!=0))/length(which((binetmatrix[,edge_a$i])!=0)))
+    return(((1-alpha)*length(which((binetmatrix[,edge_a$i]*binetmatrix[,edge_a$j]*binetmatrix[,edge_b$i])!=0))+
+              (alpha-beta)*min(length(which((binetmatrix[,edge_a$i]*binetmatrix[,edge_a$j])!=0)),length(which((binetmatrix[,edge_a$i]*binetmatrix[,edge_b$i])!=0)),length(which((binetmatrix[,edge_a$j]*binetmatrix[,edge_b$i])!=0)))+
+              beta*min(length(which(binetmatrix[,edge_a$i]!=0)),length(which(binetmatrix[,edge_a$j]!=0)),length(which(binetmatrix[,edge_b$i]!=0))))/length(which((binetmatrix[,edge_a$i])!=0)))
   }else if(edge_a$j==edge_b$i){
     # j node of a == i node of b : P(ik|j of a)
-    return(length(which((binetmatrix[,edge_a$i]*binetmatrix[,edge_a$j]*binetmatrix[,edge_b$j])!=0))/length(which((binetmatrix[,edge_a$j])!=0)))
+    return(((1-alpha)*length(which((binetmatrix[,edge_a$i]*binetmatrix[,edge_a$j]*binetmatrix[,edge_b$j])!=0))+
+              (alpha-beta)*min(length(which((binetmatrix[,edge_a$i]*binetmatrix[,edge_a$j])!=0)),length(which((binetmatrix[,edge_a$i]*binetmatrix[,edge_b$j])!=0)),length(which((binetmatrix[,edge_a$j]*binetmatrix[,edge_b$j])!=0)))+
+              beta*min(length(which(binetmatrix[,edge_a$i]!=0)),length(which(binetmatrix[,edge_a$j]!=0)),length(which(binetmatrix[,edge_b$j]!=0))))/length(which((binetmatrix[,edge_a$j])!=0)))
   }else if(edge_a$j==edge_b$j){
     # same j node : P(ik|j)
-    return(length(which((binetmatrix[,edge_a$i]*binetmatrix[,edge_a$j]*binetmatrix[,edge_b$i])!=0))/length(which((binetmatrix[,edge_a$j])!=0)))
+    return(((1-alpha)*length(which((binetmatrix[,edge_a$i]*binetmatrix[,edge_a$j]*binetmatrix[,edge_b$i])!=0))+
+              (alpha-beta)*min(length(which((binetmatrix[,edge_a$i]*binetmatrix[,edge_a$j])!=0)),length(which((binetmatrix[,edge_a$i]*binetmatrix[,edge_b$i])!=0)),length(which((binetmatrix[,edge_a$j]*binetmatrix[,edge_b$i])!=0)))+
+              beta*min(length(which(binetmatrix[,edge_a$i]!=0)),length(which(binetmatrix[,edge_a$j]!=0)),length(which(binetmatrix[,edge_b$i]!=0))))/length(which((binetmatrix[,edge_a$j])!=0)))
   }else{
     # no same node
-    return(0)
+    return(-1)
   }
 }
 # clean useless object
@@ -150,6 +183,7 @@ binetmatrix <- binetMaxCompart
 #rm(binetMaxCompart)
 #rm(projectingKeywordNetwork)
 # calculate the similarity of each edge
+# simedge!=0
 d_ply(edges,.(id),function(edge_a,edges,binetmatrix){
   e <- edges[which(edges$id>edge_a$id & (edges$i == edge_a$i | edges$i == edge_a$j | edges$j == edge_a$i | edges$j == edge_a$j)),]
   print(paste(edge_a$id,nrow(e),sep = "-"))
@@ -199,62 +233,34 @@ save(file = "edgeCommunityResult.RData",list = c("edgeCommunityDetection",
                                                     "similarity",
                                                     "edgesCommunityTree"))
 # C:特定语境下话题划分评价
-
-#####
-# 主题存在性检测
-# 话题存在性问题需要特定上下文/场景
-# how can u make sure that u find a topic?
-# do these so called topics exist?
-# 特殊上下文语义背景下,话题存在的充分必要条件就是存在特定语境下的对应实例且可用于构造对应实例
-# 1.可表达(人脑中有对应的概念就能构造),Topic -> Keywords
-# 2.话题划分合理性度量(存在该语境下对应实例),Topics -> category
-# 3.paper-topic二分图证明可以构造实例？
-#####
-# C:关键词表达提取/最大生成树/可表达性
-
-###############################
-# Drawing by wordcloud 
-###############################
-library(wordcloud)
-par(mar=c(0,0,0,0))
-pal <- brewer.pal(6,"Dark2")
-png('ICIS2014Wordcloud.png', height = 300, width = 800)
-wordcloud(words=attr_tag$keyword,freq=attr_tag$weight,scale=c(5,1),min.freq=10,max.words=500,
-          random.order=F,random.color=F,rot.per=0,colors=pal,ordered.colors=F,
-          use.r.layout=F,fixed.asp=F)
-dev.off()
-###############################
-# draw graph of topic (community)
-###############################
-#ggplot drawing
-library(sna)
-#get one of the community
-g<-delete.vertices(gg_coterm,gg_coterm.com$membership!=2)
-tb <- as.matrix(get.adjacency(g))
-m <- tb
-plotcord <- data.frame(gplot.layout.kamadakawai(m,NULL))
-row.names(plotcord) <- row.names(tb)
-out <- NULL
-for(i in 1:nrow(tb)){
-  seg <- as.matrix(tb[i,tb[i,]>0])
-  if(length(seg)!=0){
-    seg <- cbind(seg,plotcord[i,]) 
-    Xend <- plotcord[row.names(seg),]
-    colnames(Xend) <- c("Xend1","Xend2")
-    seg <- cbind(seg,Xend) 
-    out <- rbind(out,seg)
-  }
+library(plyr)
+newEdgesTree<- ddply(edgesTree,.(id),function(e){
+   if(e$i > e$j){
+     tmp <- e$i
+     set(e,1,1,e$j)
+     set(e,1,2,tmp)
+   }
+   e
+})
+newe <- edge.duplicates(edgesTree[,1:2,with = F], verbose = TRUE)
+write.table(unique(newEdgesTree[,1:2]),file = "simpleEdge",quote = F,sep = "\t",row.names = F,col.names = T)
+library(linkcomm)
+lc <- getLinkCommunities(newe$edges)
+# 划分密度
+library(dplyr)
+edgesCluster <- newEdgesTree[,c(1,2,3),with = F]
+calPartitionDesnsity <- function(edgesCluster){
+  edgesCluster <- unique(edgesCluster)
+  result <- NULL
+  setnames(edgesCluster,3,"cluster")
+  result$m <- edgesCluster %>% count(cluster)/2
+  result$n <- edgesCluster %>% group_by(cluster) %>% summarise(n = length(union(i, j)))
+  result$d <- ifelse(result$n$n==2,0,(result$m$n-(result$n$n-1))/(result$n$n*(result$n$n-1)/2-(result$n$n-1)))
+  result$density <- sum(result$d*result$m$n)/sum(result$m$n)
+  return(result$density)
 }
-png('ICIS2014.png', height = 8000, width = 8000)
-plt(out,plotcord)
-dev.off()
-###############################
-# draw better network using ggplot
-###############################
-library(ggplot2)
-plt<-function(out,plotcord){
-  p <- ggplot(data=plotcord, aes(x=X1, y=X2, label=rownames(plotcord)))+geom_point(colour="steelblue",size=40)+geom_text(size=35,vjust=-1,colour="brown",font=3)+ geom_segment(aes(x=X1, y=X2, xend = Xend1, yend = Xend2), data=out[1,], size =out[1,1]*2 , colour="grey",alpha=0.01)+theme(panel.background = element_blank()) +theme(legend.position="none")+theme(axis.title.x = element_blank(), axis.title.y = element_blank()) + theme( legend.background = element_rect(colour = NA)) + theme(panel.background = element_rect(fill = "white", colour = NA)) +theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank())
-  for(i in 2:nrow(out)){
-    p<-p+geom_segment(aes(x=X1, y=X2, xend = Xend1, yend = Xend2), data=out[i,], size =out[i,1]*12 , colour="grey",alpha=0.01)}
-  return(p)
+partitionDensity <- NULL
+for(i in 3:ncol(newEdgesTree)){
+  partitionDensity <- c(partitionDensity,calPartitionDesnsity(newEdgesTree[,c(1,2,i),with = F]))
 }
+plot(partitionDensity)
