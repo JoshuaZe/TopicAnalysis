@@ -51,3 +51,6 @@ temp
 simpleEdge
 linkcomm_diss.txt
 linkcomm_clusters.txt
+edgeCommunityTree_2
+LinkTopicModel.RData
+edgeSimilarity_2
