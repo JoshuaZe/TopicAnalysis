@@ -2,6 +2,7 @@
 
 storeList <- c("binetMaxCompart")
 save(file = "LinkTopicModel.RData",list = storeList)
+load(file = "LinkTopicModel.RData")
 #####
 # library required
 #####
@@ -23,13 +24,14 @@ storeList <- c(storeList,"keywordsprojectingCotermNetwork")
 # edges Similarity Calculation
 # binetMaxCompart and keywordsprojectingCotermNetwork$edges
 #####
-d_ply(edges,.(id),function(edge_a,edges,binetmatrix){
+edges <- keywordsprojectingCotermNetwork$edges
+d_ply(edges,.(id),function(edge_a){
   e <- edges[which(edges$id>edge_a$id & (edges$i == edge_a$i | edges$i == edge_a$j | edges$j == edge_a$i | edges$j == edge_a$j)),]
   print(paste(edge_a$id,nrow(e),sep = "-"))
   if(nrow(e)!=0){
-    d_ply(e,.(id),function(edge_b,edge_a,binetmatrix){
+    d_ply(e,.(id),function(edge_b,edge_a){
       # similarity calculation of each
-      simedge <- calculateSimilarity(edge_a,edge_b,binetmatrix)
+      simedge <- calculateSimilarity(edge_a,edge_b,binetMaxCompart)
       if(simedge!=0){
         #data.table(a_id=edge_a$id,b_id=edge_b$id,sim=simedge)
         #edges_b$id>edge_a$id
@@ -37,7 +39,7 @@ d_ply(edges,.(id),function(edge_a,edges,binetmatrix){
       }
     },edge_a,binetMaxCompart,.progress = "text")
   }
-},keywordsprojectingCotermNetwork$edges,binetMaxCompart,.progress = "text")
+},edges,binetMaxCompart,.progress = "text")
 similarity <- read.table(file = "edgeSimilarity",header = F,sep = "\t",col.names = c("a_id","b_id","sim"),stringsAsFactors = F)
 # ranking similarity edge pair list (decrease)
 similarity$rank <- length(similarity$sim) - rank(similarity$sim,ties.method = "max") + 1
