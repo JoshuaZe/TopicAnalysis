@@ -234,18 +234,8 @@ save(file = "edgeCommunityResult.RData",list = c("edgeCommunityDetection",
                                                     "edgesCommunityTree"))
 # C:特定语境下话题划分评价
 library(plyr)
-newEdgesTree<- ddply(edgesTree,.(id),function(e){
-   if(e$i > e$j){
-     tmp <- e$i
-     set(e,1,1,e$j)
-     set(e,1,2,tmp)
-   }
-   e
-})
-newe <- edge.duplicates(edgesTree[,1:2,with = F], verbose = TRUE)
-write.table(unique(newEdgesTree[,1:2]),file = "simpleEdge",quote = F,sep = "\t",row.names = F,col.names = T)
 library(linkcomm)
-lc <- getLinkCommunities(newe$edges)
+lc <- getLinkCommunities(e[,1:2])
 # 划分密度
 library(dplyr)
 edgesCluster <- newEdgesTree[,c(1,2,3),with = F]

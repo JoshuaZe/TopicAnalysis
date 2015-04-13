@@ -24,6 +24,9 @@ dev.off()
 ###############################
 # draw graph of topic (community)
 ###############################
+library(igraph)
+gg_coterm <- graph.edgelist(el = data[,1:2]),directed = FALSE)
+E(gg_coterm)$weight <- data[,3]
 #ggplot drawing
 library(sna)
 #get one of the community
@@ -43,7 +46,7 @@ for(i in 1:nrow(tb)){
     out <- rbind(out,seg)
   }
 }
-png('ICIS2014.png', height = 8000, width = 8000)
+png('network.png', height = 8000, width = 8000)
 plt(out,plotcord)
 dev.off()
 ###############################
@@ -53,6 +56,6 @@ library(ggplot2)
 plt<-function(out,plotcord){
   p <- ggplot(data=plotcord, aes(x=X1, y=X2, label=rownames(plotcord)))+geom_point(colour="steelblue",size=40)+geom_text(size=35,vjust=-1,colour="brown",font=3)+ geom_segment(aes(x=X1, y=X2, xend = Xend1, yend = Xend2), data=out[1,], size =out[1,1]*2 , colour="grey",alpha=0.01)+theme(panel.background = element_blank()) +theme(legend.position="none")+theme(axis.title.x = element_blank(), axis.title.y = element_blank()) + theme( legend.background = element_rect(colour = NA)) + theme(panel.background = element_rect(fill = "white", colour = NA)) +theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank())
   for(i in 2:nrow(out)){
-    p<-p+geom_segment(aes(x=X1, y=X2, xend = Xend1, yend = Xend2), data=out[i,], size =out[i,1]*12 , colour="grey",alpha=0.01)}
+    p<-p+geom_segment(aes(x=X1, y=X2, xend = Xend1, yend = Xend2), data=out[i,], size =out[i,]*12 , colour="grey",alpha=0.01)}
   return(p)
 }

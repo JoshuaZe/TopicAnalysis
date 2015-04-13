@@ -16,7 +16,7 @@ library(plyr)
 # paper-keyword -> keyword-keyword
 #####
 keywordsprojectingCotermNetwork <- list(keyword=colnames(binetMaxCompart),edges=projecting_tm(t(binetMaxCompart),method = "sum"))
-keywordsprojectingCotermNetwork$edges <- as.data.frame(edge.duplicates(keywordsprojectingCotermNetwork$edges[,1:2])$edges)
+keywordsprojectingCotermNetwork$edges <- as.data.frame(edge.duplicates(keywordsprojectingCotermNetwork$edges[,1:2])$edges,stringsAsFactors = F)
 keywordsprojectingCotermNetwork$edges$id  <- 1:nrow(keywordsprojectingCotermNetwork$edges)
 setnames(keywordsprojectingCotermNetwork$edges,1:2,c("i","j"))
 storeList <- c(storeList,"keywordsprojectingCotermNetwork")
