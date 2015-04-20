@@ -56,3 +56,7 @@ LinkTopicModel.RData
 edgeSimilarity_2
 BipartiteMaxCompartMatrix
 cotermEdgeList
+LinkTopicModel/PartitionDensity
+LinkTopicModel/LinkTopicTree_MST
+LinkTopicModel/LinkTopicTree_Model
+LinkTopicModel/LinkTopicTree

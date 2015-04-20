@@ -235,7 +235,7 @@ save(file = "edgeCommunityResult.RData",list = c("edgeCommunityDetection",
 # C:特定语境下话题划分评价
 library(plyr)
 library(linkcomm)
-lc <- getLinkCommunities(e[,1:2])
+lc <- getLinkCommunities(cotermMST[100:1000,1:2])
 # 划分密度
 library(dplyr)
 edgesCluster <- newEdgesTree[,c(1,2,3),with = F]
