@@ -9,6 +9,7 @@ PartitionDensity$V2 <- as.numeric(PartitionDensity$V2)
 PartitionDensity$V3 <- 1:nrow(PartitionDensity)
 maxid <- max(which(PartitionDensity$V1==max(PartitionDensity$V1)))
 PartitionDensity$V2[maxid]
+which.max(PartitionDensity$V2<=800)
 png('4-3.png', height = 800, width = 1000)
 g <- ggplot()
 g <- g + geom_point(PartitionDensity,mapping = aes(V2,V1,colour="CoNeighborBased LTM"))
@@ -44,3 +45,18 @@ g <- g + geom_line(PartitionDensity6,mapping = aes(V3,V1,colour="InsideLinkBased
 g <- g + labs(x='合并次数', y='平均划分密度',colour = "")
 g
 dev.off()
+
+# input topic 12
+g_Topic12
+g <- graph.edgelist(el = as.matrix(g_Topic12),directed = FALSE)
+is.simple(g_Topic12_coterm)
+#simple drawing
+par(mar = c(0, 0, 0, 0))
+set.seed(5)
+plot(g,layout=layout.graphopt,
+     vertex.size = 5,vertex.label.cex=1,edge.label.color="red",
+     edge.label.cex=1,edge.arrow.size=0.2,edge.width=2)
+tkplot(g)
+rglplot(g)
+
+

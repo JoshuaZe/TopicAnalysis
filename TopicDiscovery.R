@@ -254,3 +254,4 @@ for(i in 3:ncol(newEdgesTree)){
   partitionDensity <- c(partitionDensity,calPartitionDesnsity(newEdgesTree[,c(1,2,i),with = F]))
 }
 plot(partitionDensity)
+##
