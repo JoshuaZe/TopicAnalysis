@@ -125,13 +125,17 @@ result.Gibbs200 <- LDA(VSM_dtm, k = 200, method = "Gibbs",
                        control = list(seed = SEED, burnin = 1000,thin = 100, iter = 1000))
 result.Gibbs50 <- LDA(VSM_dtm, k = 50, method = "Gibbs",
                        control = list(seed = SEED, burnin = 1000,thin = 100, iter = 1000))
+result.Gibbs415 <- LDA(VSM_dtm, k = 415, method = "Gibbs",
+                      control = list(seed = SEED, burnin = 1000,thin = 100, iter = 1000))
+result.Gibbs1936 <- LDA(VSM_dtm, k = 1936, method = "Gibbs",
+                       control = list(seed = SEED, burnin = 1000,thin = 100, iter = 1000))
 
 perplexity(result.Gibbs,VSM_dtm)
 posterior(result.Gibbs)$terms
 posterior(result.Gibbs)$topic
 topics(result.Gibbs,1)
 terms(result.Gibbs)
-result.Gibbs <- result.Gibbs100
+result.Gibbs <- result.Gibbs1936
 # model assessment
 # data label
 conn <- dbConnect(MySQL(), dbname = "yuli")
@@ -142,13 +146,14 @@ Magazine_Field <- table(paperLabel$full_source_title,paperLabel$subject_category
 #####
 # result PTM - LDA theta
 LDA_theta <- cbind(as.data.frame(posterior(result.Gibbs)$topic),id = rownames(posterior(result.Gibbs)$topic),stringsAsFactors = FALSE)
+n <- ncol(LDA_theta) - 1
 Result_LDA <- inner_join(LDA_theta,paperLabel,by = c("id"="item_ut"))
 ### method two : theta_SC_Topic -> heat map
-sample_distribution <- Result_LDA[,c(2:101,105)] %>% group_by(subject_category) %>% summarise(n(),n()/length(unique(Result_LDA$id)))
-theta_SC_LDATopic <- data.frame(Result_LDA[,c(2:101,105)] %>% group_by(subject_category) %>% summarise_each(funs(mean)))
-SC_LDATopic_TF <- apply(X = theta_SC_LDATopic[,2:101],MARGIN = 2,FUN = function(x){x==max(x)})
+sample_distribution <- Result_LDA[,c(2:(n+1),(n+5))] %>% group_by(subject_category) %>% summarise(n(),n()/length(unique(Result_LDA$id)))
+theta_SC_LDATopic <- data.frame(Result_LDA[,c(2:(n+1),(n+5))] %>% group_by(subject_category) %>% summarise_each(funs(mean)))
+SC_LDATopic_TF <- apply(X = theta_SC_LDATopic[,2:(n+1)],MARGIN = 2,FUN = function(x){x==max(x)})
 # heat map
-x <- as.matrix(theta_SC_LDATopic[,2:101])
+x <- as.matrix(theta_SC_LDATopic[,2:(n+1)])
 x_TF <- SC_LDATopic_TF
 theta_SC_LDATopic$subject_category
 row.names(x)<-c("BIZ","CS-AI","CS-IS","CS-SE","IS&LS","MGMT","OR&MS")
