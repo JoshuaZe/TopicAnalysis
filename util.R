@@ -7,8 +7,6 @@ rmTempObject <- function(){
   gc()
   #ls(envir = globalenv())
 }
-
-library(plyr)
 convertDimensionToAttribute<-function(data,dimensions,values,DIMENSION_NAME="ATTRIBUTE",VALUE_NAME="VALUE"){
   head(data$UNIQUE<-c(1:nrow(data)),1)
   head(rownames(data)<-c(1:nrow(data)),1)
